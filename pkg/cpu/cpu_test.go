@@ -10,48 +10,51 @@ import (
 func TestBitBang(t *testing.T) {
 	Convey("Bit bangs", t, func() {
 		c := CPU{}
+		// c := newCPU()
 
-		So(z, ShouldEqual, 0x02)
-		So(^z, ShouldEqual, 0xfd)
+		So(posZ, ShouldEqual, 0x02)
+		So(^posZ, ShouldEqual, 0xfd)
 
 		Convey("with status all ones should set and unset zero flag", func() {
 			// set to 11..11
-			c.status = 0xff
+			c.status.Set(0xff)
+
+			fmt.Printf("status %v", c.status)
 
 			c.setZ(0) // set the zero flag
-			So(c.status, ShouldEqual, 0xff)
+			So(c.status.Get(), ShouldEqual, 0xff)
 
-			c.setZ(1)                              // should unset the zero flag
-			So(c.status, ShouldEqual, 0b1111_1101) // 0xfd
+			c.setZ(1)                                    // should unset the zero flag
+			So(c.status.Get(), ShouldEqual, 0b1111_1101) // 0xfd
 
 			c.setZ(0) // set the zero flag
-			So(c.status, ShouldEqual, 0xff)
+			So(c.status.Get(), ShouldEqual, 0xff)
 		})
 
 		Convey("with status all zeroes should set and unset zero flag", func() {
-			c.status = 0x00 // all zeroes
+			c.status.Set(0x00) // all zeroes
 
-			c.setZ(1)                       // unset zero flag
-			So(c.status, ShouldEqual, 0x00) // 0xfd
+			c.setZ(1)                             // unset zero flag
+			So(c.status.Get(), ShouldEqual, 0x00) // 0xfd
 
-			c.setZ(0)                              // set zero flag
-			So(c.status, ShouldEqual, 0b0000_0010) // zero flag set
+			c.setZ(0)                                    // set zero flag
+			So(c.status.Get(), ShouldEqual, 0b0000_0010) // zero flag set
 
-			c.setZ(1)                       // unset zero flag
-			So(c.status, ShouldEqual, 0x00) // 0xfd
+			c.setZ(1)                             // unset zero flag
+			So(c.status.Get(), ShouldEqual, 0x00) // 0xfd
 
 		})
 
 		Convey("only affects the zero flag", func() {
 			initialStatus := byte(0xfd)
-			c.status = initialStatus
+			c.status.Set(initialStatus)
 
 			c.setZ(1) // unset zero flag
-			fmt.Printf("%b\n", c.status)
-			So(c.status&^z, ShouldEqual, initialStatus)
+			fmt.Printf("%b\n", c.status.Get())
+			So(c.status.Get()&^posZ, ShouldEqual, initialStatus)
 			c.setZ(0) // set zero flag
-			fmt.Printf("%b\n", c.status)
-			So(c.status&^z, ShouldEqual, initialStatus)
+			fmt.Printf("%b\n", c.status.Get())
+			So(c.status.Get()&^posZ, ShouldEqual, initialStatus)
 		})
 
 	})
@@ -89,8 +92,8 @@ func TestOpcodes(t *testing.T) {
 				cpu.Hotloop([]byte{0xe8, 0x00})
 
 				So(cpu.x, ShouldEqual, val+1)
-				So(cpu.status&z, ShouldEqual, 0)
-				So(cpu.status&n, ShouldEqual, 0)
+				So(cpu.status.Get()&posZ, ShouldEqual, 0)
+				So(cpu.status.Get()&posN, ShouldEqual, 0)
 			})
 
 			Convey("test neg 1 to zero", func() {
@@ -99,8 +102,8 @@ func TestOpcodes(t *testing.T) {
 				cpu.Hotloop([]byte{0xe8, 0x00})
 
 				So(cpu.x, ShouldEqual, val+1)
-				So(cpu.status&z, ShouldNotEqual, 0)
-				So(cpu.status&n, ShouldEqual, 0)
+				So(cpu.status.Get()&posZ, ShouldNotEqual, 0)
+				So(cpu.status.Get()&posN, ShouldEqual, 0)
 			})
 
 		})
