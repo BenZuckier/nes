@@ -65,15 +65,44 @@ func TestOpcodes(t *testing.T) {
 			val := byte(0x69)
 			cpu.Hotloop([]byte{0xa9, val, 0x00}) // LDA, val, BRK
 			So(cpu.a, ShouldEqual, val)
+
+			So(cpu.pc, ShouldEqual, 3)
+
 		})
 
 		Convey("test TAX and BRK", func() {
 			val := byte(0x42)
 
 			cpu.a = val
-			cpu.Hotloop([]byte{0xaa, 0x00})
+			cpu.Hotloop([]byte{0xaa, 0x00}) // TAX, BRK
 
 			So(cpu.x, ShouldEqual, val)
+
+			So(cpu.pc, ShouldEqual, 2)
+		})
+
+		Convey("add one to x inx", func() {
+			Convey("test random value is incremented", func() {
+				val := byte(0x69)
+				cpu.x = val
+
+				cpu.Hotloop([]byte{0xe8, 0x00})
+
+				So(cpu.x, ShouldEqual, val+1)
+				So(cpu.status&z, ShouldEqual, 0)
+				So(cpu.status&n, ShouldEqual, 0)
+			})
+
+			Convey("test neg 1 to zero", func() {
+				val := byte(0xff) // -1
+				cpu.x = val
+				cpu.Hotloop([]byte{0xe8, 0x00})
+
+				So(cpu.x, ShouldEqual, val+1)
+				So(cpu.status&z, ShouldNotEqual, 0)
+				So(cpu.status&n, ShouldEqual, 0)
+			})
+
 		})
 	})
 
