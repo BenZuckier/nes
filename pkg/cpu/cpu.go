@@ -4,24 +4,76 @@ import (
 	"math"
 )
 
-type CPU struct {
-	pc      uint16
-	a, x, y byte
-	status  byte // NV_BDIZC, aka P
-	s       byte // stack pointer
-	memory  [0xFFFF]byte
+type Status struct {
+	N, V, P_, B, D, I, Z, C bool
 }
 
 const ( // status flag masks
-	c byte = 1 << iota
-	z
-	i
-	_ // decimal would go here but not supporting it
-	b
-	_
-	v
-	n
+	posC byte = 1 << iota
+	posZ
+	posI
+	posD // decimal would go here but not supporting it
+	posB
+	pos_ // unused
+	posV
+	posN
 )
+
+// func (status *Status) Clear() {
+// 	status = &Status{}
+// }
+
+func (status *Status) Get() (b byte) {
+	if status.N {
+		b |= posN
+	}
+	if status.V {
+		b |= posV
+	}
+	if status.P_ {
+		b |= pos_
+	}
+	if status.B {
+		b |= posB
+	}
+	if status.D {
+		b |= posD
+	}
+	if status.I {
+		b |= posI
+	}
+	if status.Z {
+		b |= posZ
+	}
+	if status.C {
+		b |= posC
+	}
+	return b
+}
+
+func (status *Status) Set(b byte) {
+	status.N = (b&posN != 0)
+	status.V = (b&posV != 0)
+	status.P_ = (b&pos_ != 0)
+	status.B = (b&posB != 0)
+	status.D = (b&posD != 0)
+	status.I = (b&posI != 0)
+	status.Z = (b&posZ != 0)
+	status.C = (b&posC != 0)
+}
+
+type CPU struct {
+	pc      uint16
+	a, x, y byte
+	// status  byte // NV_BDIZC, aka P
+	status Status
+	s      byte // stack pointer
+	memory [0xFFFF]byte
+}
+
+// func newCPU() CPU {
+// 	return CPU{status: &Status{}}
+// }
 
 const (
 	implicit = iota // implied?
@@ -51,7 +103,7 @@ func (cpu *CPU) read16(position uint16) uint16 {
 
 func (cpu *CPU) reset() {
 	cpu.a, cpu.x, cpu.y = 0, 0, 0
-	cpu.status = 0
+	cpu.status = Status{}
 
 	cpu.pc = cpu.read16(0xFFFC)
 
@@ -59,24 +111,16 @@ func (cpu *CPU) reset() {
 
 // sets the zero flag if result was 0
 func (cpu *CPU) setZ(result byte) {
-	if result == 0 {
-		cpu.status |= z
-	} else {
-		cpu.status &= ^z //
-	}
+	cpu.status.Z = result == 0
 }
 
 // The negative flag is set if the result of the last operation had bit 7 set to a one (negative 2s complement).
 func (cpu *CPU) setN(result byte) {
-	if result&0x80 != 0 {
-		cpu.status |= n
-	} else {
-		cpu.status &= ^n
-	}
+	cpu.status.N = result&0x80 != 0
 }
 
 func (cpu *CPU) setB() {
-	cpu.status |= b
+	cpu.status.B = true
 }
 
 // Force Interrupt
@@ -123,7 +167,7 @@ func (cpu *CPU) Hotloop(program []byte) {
 	}
 
 	cpu.pc = 0
-	for cpu.status&b == 0 {
+	for !cpu.status.B {
 		op := program[cpu.pc]
 		cpu.pc += 1
 		switch op {
