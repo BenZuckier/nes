@@ -85,6 +85,7 @@ func TestOpcodes(t *testing.T) {
 		})
 
 		Convey("add one to x inx", func() {
+
 			Convey("test random value is incremented", func() {
 				val := byte(0x69)
 				cpu.x = val
@@ -107,6 +108,46 @@ func TestOpcodes(t *testing.T) {
 			})
 
 		})
+
+		Convey("simple programs", func() {
+
+			Convey("p1", func() {
+				cpu.Hotloop([]byte{0xa9, 0xc0, 0xaa, 0xe8, 0x00})
+				So(cpu.x, ShouldEqual, 0xc1)
+			})
+
+			Convey("p2", func() {
+				cpu.x = 0xff
+				cpu.Hotloop([]byte{0xe8, 0xe8, 0x00})
+				So(cpu.x, ShouldEqual, 1)
+			})
+
+		})
+
 	})
 
+}
+
+func TestMemory(t *testing.T) {
+	Convey("should test memory", t, func() {
+		cpu := CPU{}
+
+		Convey("test read and write", func() {
+			// write 16B 0x8000 to addr 0x9000, little endian so it's 0x0080 in memory
+			pos := uint16(0x9000)
+			expected := uint16(0x8000)
+			cpu.memory[pos] = 0x00
+			cpu.memory[pos+1] = 0x80
+
+			dat := cpu.read16(pos)
+			fmt.Printf("dat is %04x", dat)
+			So(dat, ShouldEqual, expected)
+
+			// test writing back zero then 0x8000 again
+			cpu.write16(pos, 0)
+			So(cpu.read16(pos), ShouldEqual, 0)
+			cpu.write16(pos, expected)
+			So(cpu.read16(pos), ShouldEqual, expected)
+		})
+	})
 }
