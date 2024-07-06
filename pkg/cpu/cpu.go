@@ -19,9 +19,9 @@ const ( // status flag masks
 	posN
 )
 
-// func (status *Status) Clear() {
-// 	status = &Status{}
-// }
+func (status *Status) Clear() {
+	status.Set(0)
+}
 
 func (status *Status) Get() (b byte) {
 	if status.N {
@@ -65,9 +65,18 @@ func (status *Status) Set(b byte) {
 type CPU struct {
 	pc      uint16
 	a, x, y byte
-	// status  byte // NV_BDIZC, aka P
-	status Status
-	s      byte // stack pointer
+	status  Status
+	s       byte // stack pointer
+	// 0x0000-0x00FF is zero page (first page)
+	//
+	// 0x0100-0x01FF is system stack (second page)
+	//
+	// last 6 bytes 0xFFFA-0xFFFF must be programmed with the addresses of
+	// the non-maskable interrupt handler (0xFFFA/B),
+	// the power on reset location (0xFFFC/D)
+	// and the BRK/interrupt request handler (0xFFFE/F).
+	//
+	// https://www.nesdev.org/obelisk-6502-guide/architecture.html
 	memory [0xFFFF]byte
 }
 
@@ -94,18 +103,45 @@ const (
 // implementing 6502 as described in https://wdc65xx.com/Programming-Manual/ eyes/lichty
 // lots of the descriptions taken from https://www.nesdev.org/obelisk-6502-guide/reference.html
 
-func (cpu *CPU) read16(position uint16) uint16 {
-	hi, lo := uint16(cpu.memory[position]), uint16(cpu.memory[position+1])
-	// a := binary.LittleEndian.Uint16(cpu.memory[position])
-	// a2 := int16(a)
-	return hi<<8 | lo
+// read returns the byte stored at the 16 bit position in memory
+func (cpu *CPU) read(pos uint16) byte {
+	return cpu.memory[pos]
 }
+
+// write stores the given byte `dat` into the 16 bit position in memory
+func (cpu *CPU) write(pos uint16, dat byte) {
+	cpu.memory[pos] = dat
+}
+
+func (cpu *CPU) read16(pos uint16) uint16 {
+	// return binary.LittleEndian.Uint16(
+	// 	[]byte{cpu.read(pos), cpu.read(pos + 1)})
+
+	lo, hi := uint16(cpu.memory[pos]), uint16(cpu.memory[pos+1])
+	return hi<<8 | lo
+
+}
+
+func (cpu *CPU) write16(pos uint16, dat uint16) {
+	// binary.LittleEndian.PutUint16(cpu.memory[pos:], dat)
+
+	cpu.write(pos, byte(dat))
+	cpu.write(pos+1, byte(dat>>8))
+}
+
+func (cpu *CPU) push() {
+
+}
+
+const pcInitAddr = 0xFFFC
+const stackInit = 0xff - 2 // simulates stack pointer being at ff and "secretly" pushing PC and pushing P which increments p by 2 like BRK or IRQ
 
 func (cpu *CPU) reset() {
 	cpu.a, cpu.x, cpu.y = 0, 0, 0
-	cpu.status = Status{}
+	cpu.status.Set(0x24) // clear and set B and I
 
-	cpu.pc = cpu.read16(0xFFFC)
+	cpu.pc = cpu.read16(pcInitAddr)
+	cpu.s = stackInit
 
 }
 
@@ -126,12 +162,13 @@ func (cpu *CPU) setB() {
 // Force Interrupt
 //
 // The BRK instruction forces the generation of an interrupt request.
-// The program counter and processor status are pushed on the stack then the IRQ interrupt vector at $FFFE/F is loaded into the PC and the break flag in the status set to one.
+// The program counter and processor status are pushed on the stack then the IRQ interrupt vector at 0xFFFE/F is loaded into the PC and the break flag in the status set to one.
 func (cpu *CPU) BRK() {
+	// cpu.
 	cpu.setB()
 
 	// TODO: push PC and status onto the stack
-	// TOOD: load IRQ interrup vector at $FFFE/F into the PC
+	// TODO: load IRQ interrupt vector at 0xFFFE/F into the PC
 }
 
 // Load Accumulator
