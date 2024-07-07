@@ -63,13 +63,20 @@ func TestBitBang(t *testing.T) {
 func TestOpcodes(t *testing.T) {
 	Convey("should test LDA and BRK", t, func() {
 		cpu := newCPU()
+		cpu.write16(0xFFFE, 0x1234) // put 1234 at the IRQ interrupt vector
 
 		Convey("should load test value with LDA and BRK", func() {
 			val := byte(0x69)
-			cpu.Hotloop([]byte{0xa9, val, 0x00}) // LDA, val, BRK
+
+			cpu.Hotloop([]byte{0xa9, val, 0x00, 0x00}) // LDA, val, BRK, ignored brk value
 			So(cpu.a, ShouldEqual, val)
 
-			// So(cpu.pc, ShouldEqual, 3)
+			// pc gets set to the val at 0xFFFE after brk (IRQ interrupt vector)
+			So(cpu.pc, ShouldEqual, 0x1234)
+
+			oldStatus, oldPC := cpu.pop(), cpu.pop16() // get the status and program counter from the stack
+			So(oldStatus, ShouldEqual, 0x00|posB)
+			So(oldPC, ShouldEqual, 4)
 
 		})
 
@@ -77,11 +84,15 @@ func TestOpcodes(t *testing.T) {
 			val := byte(0x42)
 
 			cpu.a = val
-			cpu.Hotloop([]byte{0xaa, 0x00}) // TAX, BRK
+			cpu.Hotloop([]byte{0xaa, 0x00, 0x00}) // TAX, BRK, ignored brk val
 
 			So(cpu.x, ShouldEqual, val)
 
-			// So(cpu.pc, ShouldEqual, 2)
+			So(cpu.pc, ShouldEqual, 0x1234)
+
+			oldStatus, oldPC := cpu.pop(), cpu.pop16() // get the status and program counter from the stack
+			So(oldStatus, ShouldEqual, 0x00|posB)
+			So(oldPC, ShouldEqual, 3)
 		})
 
 		Convey("add one to x inx", func() {
@@ -114,6 +125,10 @@ func TestOpcodes(t *testing.T) {
 			Convey("p1", func() {
 				cpu.Hotloop([]byte{0xa9, 0xc0, 0xaa, 0xe8, 0x00})
 				So(cpu.x, ShouldEqual, 0xc1)
+
+				oldStatus, oldPC := cpu.pop(), cpu.pop16() // get the status and program counter from the stack
+				So(oldStatus, ShouldEqual, 0x00|posB|posN)
+				So(oldPC, ShouldEqual, 6)
 			})
 
 			Convey("p2", func() {

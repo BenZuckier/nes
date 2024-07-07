@@ -162,7 +162,7 @@ func (cpu *CPU) push16(dat uint16) {
 
 // pop16 increments the stack pointer twice and gets the uint16 at the top of the stack.
 func (cpu *CPU) pop16() uint16 {
-	return uint16(cpu.pop()<<8) | uint16(cpu.pop()) // hi << 8
+	return uint16(cpu.pop()) | uint16(cpu.pop())<<8 // low | hi << 8 // order sensitive
 }
 
 // effStack gets the effective stack pointer into memory by adding 0x0100 as the high byte to the supplied low byte stack pointer.
@@ -215,7 +215,7 @@ func (cpu *CPU) brk(dat opDat) {
 	cpu.pc = cpu.read16(0xFFFE)
 }
 
-// Load Accumulator
+// lda - Load Accumulator
 //
 // load the value into register A and set Z and N flags if value is 0 or negative respectively.
 func (cpu *CPU) lda(dat opDat) {
@@ -223,7 +223,7 @@ func (cpu *CPU) lda(dat opDat) {
 	cpu.setZN(cpu.a)
 }
 
-//	Transfer Accumulator to X
+// tax - Transfer Accumulator to X
 //
 // Copies the current contents of the accumulator into the X register and sets the zero and negative flags as appropriate. (transfer a to x)
 func (cpu *CPU) tax(opDat) {
@@ -231,7 +231,7 @@ func (cpu *CPU) tax(opDat) {
 	cpu.setZN(cpu.x)
 }
 
-// Increment X Register
+// inx - Increment X Register
 //
 // Adds one to the X register setting the zero and negative flags as appropriate.
 func (cpu *CPU) inx(opDat) {
@@ -253,9 +253,47 @@ func (cpu *CPU) php(opDat) {
 }
 func (cpu *CPU) anc(opDat) {}
 func (cpu *CPU) bpl(opDat) {}
-func (cpu *CPU) clc(opDat) {}
+
+// clc - Clear Carry Flag
+//
+// Set the carry flag to zero.
+func (cpu *CPU) clc(opDat) {
+	cpu.status.C = false
+}
+
+// cld - Clear Decimal Mode
+//
+// Sets the decimal mode flag to zero.
+//
+// NOTE: decimal mode will not be implemented
+func (cpu *CPU) cld(opDat) {
+	cpu.status.D = false
+}
+
+// cli - Clear Interrupt Disable
+//
+// Clears the interrupt disable flag allowing normal interrupt requests to be serviced.
+func (cpu *CPU) cli(opDat) {
+	cpu.status.I = false
+}
+
+// clv - Clear Overflow Flag
+//
+// Clears the overflow flag.
+func (cpu *CPU) clv(opDat) {
+	cpu.status.V = false
+}
+
 func (cpu *CPU) jsr(opDat) {}
-func (cpu *CPU) and(opDat) {}
+
+// and - Logical AND
+//
+// A,Z,N = A&M
+//
+// A logical AND is performed, bit by bit, on the accumulator contents using the contents of a byte of memory.
+func (cpu *CPU) and(opDat) {
+	// TODO: and
+}
 func (cpu *CPU) rla(opDat) {}
 func (cpu *CPU) bit(opDat) {}
 func (cpu *CPU) rol(opDat) {}
@@ -270,7 +308,6 @@ func (cpu *CPU) pha(opDat) {}
 func (cpu *CPU) alr(opDat) {}
 func (cpu *CPU) jmp(opDat) {}
 func (cpu *CPU) bvc(opDat) {}
-func (cpu *CPU) cli(opDat) {}
 func (cpu *CPU) rts(opDat) {}
 func (cpu *CPU) adc(opDat) {}
 func (cpu *CPU) rra(opDat) {}
@@ -307,7 +344,6 @@ func (cpu *CPU) lax(opDat)  {}
 func (cpu *CPU) tay(opDat)  {}
 func (cpu *CPU) lxa(opDat)  {}
 func (cpu *CPU) bcs(opDat)  {}
-func (cpu *CPU) clv(opDat)  {}
 func (cpu *CPU) tsx(opDat)  {}
 func (cpu *CPU) las(opDat)  {}
 func (cpu *CPU) cpy(opDat)  {}
@@ -318,7 +354,6 @@ func (cpu *CPU) iny(opDat)  {}
 func (cpu *CPU) dex(opDat)  {}
 func (cpu *CPU) sbx(opDat)  {}
 func (cpu *CPU) bne(opDat)  {}
-func (cpu *CPU) cld(opDat)  {}
 func (cpu *CPU) cpx(opDat)  {}
 func (cpu *CPU) sbc(opDat)  {}
 func (cpu *CPU) isc(opDat)  {}
@@ -335,7 +370,6 @@ func (cpu *CPU) Hotloop(program []byte) {
 	// 	panic(fmt.Errorf("len of program %v greater than max %v", len(program), math.MaxUint16))
 	// }
 	copy(cpu.memory[:], program)
-	cpu.pc = 0
 	for !cpu.status.B {
 		op := cpu.opcodes[cpu.read(cpu.pc)]
 		dat := opDat{mode: op.Mode}
