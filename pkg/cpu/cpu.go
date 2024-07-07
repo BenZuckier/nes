@@ -199,6 +199,20 @@ func (cpu *CPU) setZN(result byte) {
 	cpu.setN(result)
 }
 
+// deferrableSetFn makes a cpu.set_α function able to be called with the defer keyword and still work as expected.
+//
+// It takes a setFn which accepts a byte and allows us to pass a POINTER to the byte
+// so the function can be deferred and not make a closure around the value of "result" prematurely.
+//
+// E.g. if we pass a value and the first line of a function is `defer setZN(cpu.a)` before we do anything and then set `cpu.a = 0`
+// the defer will have closed around the previous value of a and we won't properly set the zero flag.
+// Instead now we pass the pointer &cpu.a and when it runs the defer it will get the updated value of cpu.a = 0.
+//
+// TBD if this is a bad idea. Could also genericize.
+func deferrableSetFn(setFn func(byte)) func(*byte) {
+	return func(v *byte) { setFn(*v) }
+}
+
 func (cpu *CPU) setB() {
 	cpu.status.B = true
 }
@@ -219,24 +233,25 @@ func (cpu *CPU) brk(dat opDat) {
 //
 // load the value into register A and set Z and N flags if value is 0 or negative respectively.
 func (cpu *CPU) lda(dat opDat) {
+	defer deferrableSetFn(cpu.setZN)(&cpu.a)
 	cpu.a = cpu.read(dat.addr)
-	cpu.setZN(cpu.a)
 }
 
 // tax - Transfer Accumulator to X
 //
 // Copies the current contents of the accumulator into the X register and sets the zero and negative flags as appropriate. (transfer a to x)
 func (cpu *CPU) tax(opDat) {
+	defer deferrableSetFn(cpu.setZN)(&cpu.x)
+	// defer cpu.setZN(&cpu.x)
 	cpu.x = cpu.a
-	cpu.setZN(cpu.x)
 }
 
 // inx - Increment X Register
 //
 // Adds one to the X register setting the zero and negative flags as appropriate.
 func (cpu *CPU) inx(opDat) {
+	defer deferrableSetFn(cpu.setZN)(&cpu.x)
 	cpu.x += 1
-	cpu.setZN(cpu.x)
 }
 
 func (cpu *CPU) ora(opDat) {}
