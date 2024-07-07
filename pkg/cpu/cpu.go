@@ -1,6 +1,9 @@
 package cpu
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type Status struct {
 	N, V, P_, B, D, I, Z, C bool
@@ -384,10 +387,12 @@ func (cpu *CPU) sed(opDat)  {}
 // 23 illegals
 
 func (cpu *CPU) Hotloop(program []byte) {
-	// if len(program) > math.MaxUint16 {
-	// 	panic(fmt.Errorf("len of program %v greater than max %v", len(program), math.MaxUint16))
-	// }
-	copy(cpu.memory[:], program)
+	if len(program) > math.MaxUint16 {
+		panic(fmt.Errorf("len of program %v greater than max %v", len(program), math.MaxUint16))
+	}
+
+	copy(cpu.memory[:], program) // TODO: actually load
+
 	for !cpu.status.B {
 		op, nPC := cpu.opcodes[cpu.read(cpu.pc)], cpu.pc+1
 		dat := opDat{mode: op.Mode}
@@ -436,21 +441,5 @@ func (cpu *CPU) Hotloop(program []byte) {
 		op.Do(dat)
 
 	}
-	// for !cpu.status.B {
-	// 	op := program[cpu.pc]
-	// 	cpu.pc += 1
-	// 	switch op {
-	// 	case 0x00:
-	// 		cpu.brk()
-	// 	case 0xa9:
-	// 		// value := program[cpu.pc]
-	// 		cpu.lda(opDat{addr: })
-	// 		cpu.pc += 1
-	// 	case 0xaa:
-	// 		cpu.tax()
-	// 	case 0xe8:
-	// 		cpu.inx()
-	// 	}
-
-	// }
+	fmt.Printf("Time to take a BRK. bye :)\n")
 }
