@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -66,7 +67,8 @@ type CPU struct {
 	pc      uint16
 	a, x, y byte
 	status  Status
-	s       byte // stack pointer
+	// stack pointer. really uint16 but the high byte is always 0x01 so the effective addr is `0x01 | CPU.s`
+	s byte
 	// 0x0000-0x00FF is zero page (first page)
 	//
 	// 0x0100-0x01FF is system stack (second page)
@@ -77,7 +79,8 @@ type CPU struct {
 	// and the BRK/interrupt request handler (0xFFFE/F).
 	//
 	// https://www.nesdev.org/obelisk-6502-guide/architecture.html
-	memory [0xFFFF]byte
+	memory  [0xFFFF]byte
+	opcodes map[byte]opcode
 }
 
 // func newCPU() CPU {
@@ -100,6 +103,22 @@ const (
 	indirectIndexed
 )
 
+var modeNames = map[int]string{
+	implicit:        "implicit",
+	accumulator:     "accumulator",
+	immediate:       "immediate",
+	zeroPage:        "zeroPage",
+	zeroPageX:       "zeroPageX",
+	zeroPageY:       "zeroPageY",
+	relative:        "relative",
+	absolute:        "absolute",
+	absoluteX:       "absoluteX",
+	absoluteY:       "absoluteY",
+	indirect:        "indirect",
+	indexedIndirect: "indexedIndirect",
+	indirectIndexed: "indirectIndexed",
+}
+
 // implementing 6502 as described in https://wdc65xx.com/Programming-Manual/ eyes/lichty
 // lots of the descriptions taken from https://www.nesdev.org/obelisk-6502-guide/reference.html
 
@@ -114,27 +133,36 @@ func (cpu *CPU) write(pos uint16, dat byte) {
 }
 
 func (cpu *CPU) read16(pos uint16) uint16 {
-	// return binary.LittleEndian.Uint16(
-	// 	[]byte{cpu.read(pos), cpu.read(pos + 1)})
 
 	lo, hi := uint16(cpu.memory[pos]), uint16(cpu.memory[pos+1])
 	return hi<<8 | lo
 
 }
 
-func (cpu *CPU) write16(pos uint16, dat uint16) {
-	// binary.LittleEndian.PutUint16(cpu.memory[pos:], dat)
+func (cpu *CPU) write16(pos, dat uint16) {
 
 	cpu.write(pos, byte(dat))
 	cpu.write(pos+1, byte(dat>>8))
 }
 
-func (cpu *CPU) push() {
-
+// push writes the byte dat to the position pointed to by [CPU.s] and grows the stack downwards.
+func (cpu *CPU) push(dat byte) {
+	cpu.write(cpu.effStack(), dat)
+	cpu.s -= 1
+}
+func (cpu *CPU) pop() byte {
+	cpu.s += 1
+	return cpu.read(cpu.effStack())
 }
 
-const pcInitAddr = 0xFFFC
-const stackInit = 0xff - 2 // simulates stack pointer being at ff and "secretly" pushing PC and pushing P which increments p by 2 like BRK or IRQ
+// effStack gets the effective stack pointer into memory by adding 0x0100 as the high byte to the supplied low byte stack pointer.
+func (cpu *CPU) effStack() uint16 {
+	return stackOffset | uint16(cpu.s)
+}
+
+const stackOffset = uint16(0x0100)
+const pcInitAddr = uint16(0xFFFC)
+const stackInit = byte(0xff - 2) // simulates stack pointer being at ff and "secretly" pushing PC and pushing P which increments p by 2 like BRK or IRQ
 
 func (cpu *CPU) reset() {
 	cpu.a, cpu.x, cpu.y = 0, 0, 0
@@ -161,9 +189,9 @@ func (cpu *CPU) setB() {
 
 // Force Interrupt
 //
-// The BRK instruction forces the generation of an interrupt request.
+// The brk instruction forces the generation of an interrupt request.
 // The program counter and processor status are pushed on the stack then the IRQ interrupt vector at 0xFFFE/F is loaded into the PC and the break flag in the status set to one.
-func (cpu *CPU) BRK() {
+func (cpu *CPU) brk(opDat) {
 	// cpu.
 	cpu.setB()
 
@@ -174,8 +202,8 @@ func (cpu *CPU) BRK() {
 // Load Accumulator
 //
 // load the value into register A and set Z and N flags if value is 0 or negative respectively.
-func (cpu *CPU) LDA(value byte) {
-	cpu.a = value
+func (cpu *CPU) lda(dat opDat) {
+	cpu.a = cpu.read(dat.addr)
 	cpu.setZ(cpu.a)
 	cpu.setN(cpu.a)
 }
@@ -183,7 +211,7 @@ func (cpu *CPU) LDA(value byte) {
 //	Transfer Accumulator to X
 //
 // Copies the current contents of the accumulator into the X register and sets the zero and negative flags as appropriate. (transfer a to x)
-func (cpu *CPU) TAX() {
+func (cpu *CPU) tax(opDat) {
 	cpu.x = cpu.a
 	cpu.setZ(cpu.x)
 	cpu.setN(cpu.x)
@@ -192,7 +220,7 @@ func (cpu *CPU) TAX() {
 // Increment X Register
 //
 // Adds one to the X register setting the zero and negative flags as appropriate.
-func (cpu *CPU) INX() {
+func (cpu *CPU) inx(opDat) {
 	cpu.x += 1
 	cpu.setZ(cpu.x)
 	cpu.setN(cpu.x)
@@ -200,25 +228,25 @@ func (cpu *CPU) INX() {
 
 func (cpu *CPU) Hotloop(program []byte) {
 	if len(program) > math.MaxUint16 {
-		return
+		panic(fmt.Errorf("len of program %v greater than max %v", len(program), math.MaxUint16))
 	}
 
 	cpu.pc = 0
-	for !cpu.status.B {
-		op := program[cpu.pc]
-		cpu.pc += 1
-		switch op {
-		case 0x00:
-			cpu.BRK()
-		case 0xa9:
-			value := program[cpu.pc]
-			cpu.pc += 1
-			cpu.LDA(value)
-		case 0xaa:
-			cpu.TAX()
-		case 0xe8:
-			cpu.INX()
-		}
+	// for !cpu.status.B {
+	// 	op := program[cpu.pc]
+	// 	cpu.pc += 1
+	// 	switch op {
+	// 	case 0x00:
+	// 		cpu.brk()
+	// 	case 0xa9:
+	// 		// value := program[cpu.pc]
+	// 		cpu.lda(opDat{addr: })
+	// 		cpu.pc += 1
+	// 	case 0xaa:
+	// 		cpu.tax()
+	// 	case 0xe8:
+	// 		cpu.inx()
+	// 	}
 
-	}
+	// }
 }
