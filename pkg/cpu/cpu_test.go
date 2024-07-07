@@ -57,6 +57,35 @@ func TestBitBang(t *testing.T) {
 			So(c.status.Get()&^posZ, ShouldEqual, initialStatus)
 		})
 
+		Convey("relative mode adds signed int to uint?", func() {
+			// when checking my work against some random on the internet i saw their calculation for relative mode was weird and complex whereas mine was simple.
+			// This tests checks every possible byte value against my impl and their impl and shows they're the same.
+			myFunc := func(num byte) uint16 { return 2 + uint16(int8(num)) }
+			internetFunc := func(num byte) uint16 {
+				offset := uint16(num)
+				if offset < 0x80 {
+					return 2 + offset
+				} else {
+					return 2 + offset - 0x100
+				}
+			}
+			for i := 0; i < 256; i++ {
+				num := byte(i)
+				So(myFunc(num), ShouldEqual, internetFunc(num))
+			}
+
+			// more proof that casting a byte to int8 and back to uint16 gives the proper value
+			neg1 := byte(0xff)
+			x := int8(neg1)
+			ux := uint16(x)
+
+			Printf("\nneg1: %0x, x: %0x, ux: %0x\n", neg1, x, ux)
+
+			So(int(x), ShouldEqual, -1)
+			So(ux, ShouldEqual, 0xffff)
+
+		})
+
 	})
 }
 

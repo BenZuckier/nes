@@ -1,5 +1,7 @@
 package cpu
 
+import "fmt"
+
 type Status struct {
 	N, V, P_, B, D, I, Z, C bool
 }
@@ -306,8 +308,9 @@ func (cpu *CPU) jsr(opDat) {}
 // A,Z,N = A&M
 //
 // A logical AND is performed, bit by bit, on the accumulator contents using the contents of a byte of memory.
-func (cpu *CPU) and(opDat) {
-	// TODO: and
+func (cpu *CPU) and(dat opDat) {
+	defer deferrableSetFn(cpu.setZN)(&cpu.a)
+	cpu.a &= cpu.read(dat.addr)
 }
 func (cpu *CPU) rla(opDat) {}
 func (cpu *CPU) bit(opDat) {}
@@ -386,24 +389,45 @@ func (cpu *CPU) Hotloop(program []byte) {
 	// }
 	copy(cpu.memory[:], program)
 	for !cpu.status.B {
-		op := cpu.opcodes[cpu.read(cpu.pc)]
+		op, nPC := cpu.opcodes[cpu.read(cpu.pc)], cpu.pc+1
 		dat := opDat{mode: op.Mode}
 		switch op.Mode {
 		case implicit:
 		case accumulator:
 		case immediate:
-			dat.addr = cpu.pc + 1
+			dat.addr = nPC
 		case zeroPage:
+			dat.addr = uint16(cpu.read(nPC))
 		case zeroPageX:
-		case zeroPageY:
+			dat.addr = uint16(cpu.read(nPC) + cpu.x)
+		case zeroPageY: // This mode can only be used with the LDX and STX instructions.
+			dat.addr = uint16(cpu.read(nPC) + cpu.y)
 		case relative:
+			dat.addr = nPC + 1 + uint16(int8(cpu.read(nPC))) // the "byte" read is really a signed int8. Interpret as int8 then cast to unsigned 2s complement and account for the instruction length.
 		case absolute:
+			dat.addr = cpu.read16(nPC)
 		case absoluteX:
+			dat.addr = cpu.read16(nPC) + uint16(cpu.x)
 		case absoluteY:
+			dat.addr = cpu.read16(nPC) + uint16(cpu.y)
+		// JMP is the only 6502 instruction to support indirection.
+		// The instruction contains a 16 bit address which identifies the location of the least significant byte of another 16 bit memory address which is the real target of the instruction.
 		case indirect:
+			dat.addr = cpu.read16(cpu.read16(nPC)) // TODO: apparently there's a bug ?
+		// Indexed indirect addressing is normally used in conjunction with a table of address held on zero page.
+		// The address of the table is taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant byte of the target address.
 		case indirectX:
+			dat.addr = cpu.read16(
+				uint16(cpu.read(nPC)) + uint16(cpu.x),
+			)
+		// Indirect indirect addressing is the most common indirection mode used on the 6502.
+		// In instruction contains the zero page location of the least significant byte of 16 bit address. The Y register is dynamically added to this value to generated the actual target address for operation.
 		case indirectY:
+			dat.addr = cpu.read16(
+				uint16(cpu.read(nPC)),
+			) + uint16(cpu.y)
 		default:
+			panic(fmt.Errorf("unknown mode for op: %+v, cpu: %+v", op, cpu))
 		}
 		cpu.pc += op.Size
 		// TODO: count cycles and page crossings
