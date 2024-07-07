@@ -192,6 +192,8 @@ func TestMemory(t *testing.T) {
 			So(cpu.read16(pos), ShouldEqual, 0)
 			cpu.write16(pos, expected)
 			So(cpu.read16(pos), ShouldEqual, expected)
+
+			So(true, ShouldBeFalse) // fail
 		})
 	})
 }
