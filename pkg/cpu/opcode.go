@@ -10,286 +10,286 @@ type opDat struct {
 
 // opcode represents a 6502 opcode with its metadata.
 type opcode struct {
-	Name    string
-	Mode    string
-	Size    int
-	Cycles  int
-	Execute func(opDat)
+	Name   string
+	Mode   int
+	Size   int
+	Cycles int
+	Fn     func(opDat) // FbyF is 256 total codes, with 105 illegal opcodes, giving 151 legal codes.
 }
 
 // InitializeOpcodeTable initializes the CPU's opcode table.
 func (cpu *CPU) initializeOpcodeTable() {
-	cpu.opcodes = map[byte]opcode{
-		0x00: {"BRK", "impl", 1, 7, cpu.brk},
-		0x01: {"ORA", "X,ind", 2, 6, cpu.ora},
-		0x02: {"JAM", "impl", 1, 0, cpu.jam},
-		0x03: {"SLO", "X,ind", 2, 8, cpu.slo},
-		0x04: {"NOP", "zpg", 2, 3, cpu.nop},
-		0x05: {"ORA", "zpg", 2, 3, cpu.ora},
-		0x06: {"ASL", "zpg", 2, 5, cpu.asl},
-		0x07: {"SLO", "zpg", 2, 5, cpu.slo},
-		0x08: {"PHP", "impl", 1, 3, cpu.php},
-		0x09: {"ORA", "#", 2, 2, cpu.ora},
-		0x0A: {"ASL", "A", 1, 2, cpu.asl},
-		0x0B: {"ANC", "#", 2, 2, cpu.anc},
-		0x0C: {"NOP", "abs", 3, 4, cpu.nop},
-		0x0D: {"ORA", "abs", 3, 4, cpu.ora},
-		0x0E: {"ASL", "abs", 3, 6, cpu.asl},
-		0x0F: {"SLO", "abs", 3, 6, cpu.slo},
+	cpu.opcodes = map[byte]opcode{ // could just be a slice but whatever
+		0x00: {Name: "BRK", Mode: implicit, Size: 1, Cycles: 7, Fn: cpu.brk},
+		0x01: {Name: "ORA", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.ora},
+		0x02: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x03: {Name: "SLO", Mode: indirectX, Size: 2, Cycles: 8, Fn: cpu.slo}, // illegal
+		0x04: {Name: "NOP", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.nop},  // illegal
+		0x05: {Name: "ORA", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.ora},
+		0x06: {Name: "ASL", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.asl},
+		0x07: {Name: "SLO", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.slo}, // illegal
+		0x08: {Name: "PHP", Mode: implicit, Size: 1, Cycles: 3, Fn: cpu.php},
+		0x09: {Name: "ORA", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.ora},
+		0x0A: {Name: "ASL", Mode: accumulator, Size: 1, Cycles: 2, Fn: cpu.asl},
+		0x0B: {Name: "ANC", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.anc}, // illegal
+		0x0C: {Name: "NOP", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.nop},  // illegal
+		0x0D: {Name: "ORA", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.ora},
+		0x0E: {Name: "ASL", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.asl},
+		0x0F: {Name: "SLO", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.slo}, // illegal
 
-		0x10: {"BPL", "rel", 2, 2, cpu.bpl},
-		0x11: {"ORA", "ind,Y", 2, 5, cpu.ora},
-		0x12: {"JAM", "impl", 1, 0, cpu.jam},
-		0x13: {"SLO", "ind,Y", 2, 8, cpu.slo},
-		0x14: {"NOP", "zpg,X", 2, 4, cpu.nop},
-		0x15: {"ORA", "zpg,X", 2, 4, cpu.ora},
-		0x16: {"ASL", "zpg,X", 2, 6, cpu.asl},
-		0x17: {"SLO", "zpg,X", 2, 6, cpu.slo},
-		0x18: {"CLC", "impl", 1, 2, cpu.clc},
-		0x19: {"ORA", "abs,Y", 3, 4, cpu.ora},
-		0x1A: {"NOP", "impl", 1, 2, cpu.nop},
-		0x1B: {"SLO", "abs,Y", 3, 7, cpu.slo},
-		0x1C: {"NOP", "abs,X", 3, 4, cpu.nop},
-		0x1D: {"ORA", "abs,X", 3, 4, cpu.ora},
-		0x1E: {"ASL", "abs,X", 3, 7, cpu.asl},
-		0x1F: {"SLO", "abs,X", 3, 7, cpu.slo},
+		0x10: {Name: "BPL", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bpl},
+		0x11: {Name: "ORA", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.ora},
+		0x12: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x13: {Name: "SLO", Mode: indirectY, Size: 2, Cycles: 8, Fn: cpu.slo}, // illegal
+		0x14: {Name: "NOP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x15: {Name: "ORA", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.ora},
+		0x16: {Name: "ASL", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.asl},
+		0x17: {Name: "SLO", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.slo}, // illegal
+		0x18: {Name: "CLC", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.clc},
+		0x19: {Name: "ORA", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.ora},
+		0x1A: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},  // illegal
+		0x1B: {Name: "SLO", Mode: absoluteY, Size: 3, Cycles: 7, Fn: cpu.slo}, // illegal
+		0x1C: {Name: "NOP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x1D: {Name: "ORA", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.ora},
+		0x1E: {Name: "ASL", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.asl},
+		0x1F: {Name: "SLO", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.slo}, // illegal
 
-		0x20: {"JSR", "abs", 3, 6, cpu.jsr},
-		0x21: {"AND", "X,ind", 2, 6, cpu.and},
-		0x22: {"JAM", "impl", 1, 0, cpu.jam},
-		0x23: {"RLA", "X,ind", 2, 8, cpu.rla},
-		0x24: {"BIT", "zpg", 2, 3, cpu.bit},
-		0x25: {"AND", "zpg", 2, 3, cpu.and},
-		0x26: {"ROL", "zpg", 2, 5, cpu.rol},
-		0x27: {"RLA", "zpg", 2, 5, cpu.rla},
-		0x28: {"PLP", "impl", 1, 4, cpu.plp},
-		0x29: {"AND", "#", 2, 2, cpu.and},
-		0x2A: {"ROL", "A", 1, 2, cpu.rol},
-		0x2B: {"ANC", "#", 2, 2, cpu.anc},
-		0x2C: {"BIT", "abs", 3, 4, cpu.bit},
-		0x2D: {"AND", "abs", 3, 4, cpu.and},
-		0x2E: {"ROL", "abs", 3, 6, cpu.rol},
-		0x2F: {"RLA", "abs", 3, 6, cpu.rla},
+		0x20: {Name: "JSR", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.jsr},
+		0x21: {Name: "AND", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.and},
+		0x22: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x23: {Name: "RLA", Mode: indirectX, Size: 2, Cycles: 8, Fn: cpu.rla}, // illegal
+		0x24: {Name: "BIT", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.bit},
+		0x25: {Name: "AND", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.and},
+		0x26: {Name: "ROL", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.rol},
+		0x27: {Name: "RLA", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.rla}, // illegal
+		0x28: {Name: "PLP", Mode: implicit, Size: 1, Cycles: 4, Fn: cpu.plp},
+		0x29: {Name: "AND", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.and},
+		0x2A: {Name: "ROL", Mode: accumulator, Size: 1, Cycles: 2, Fn: cpu.rol},
+		0x2B: {Name: "ANC", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.anc}, // illegal
+		0x2C: {Name: "BIT", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.bit},
+		0x2D: {Name: "AND", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.and},
+		0x2E: {Name: "ROL", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.rol},
+		0x2F: {Name: "RLA", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.rla}, // illegal
 
-		0x30: {"BMI", "rel", 2, 2, cpu.bmi},
-		0x31: {"AND", "ind,Y", 2, 5, cpu.and},
-		0x32: {"JAM", "impl", 1, 0, cpu.jam},
-		0x33: {"RLA", "ind,Y", 2, 8, cpu.rla},
-		0x34: {"NOP", "zpg,X", 2, 4, cpu.nop},
-		0x35: {"AND", "zpg,X", 2, 4, cpu.and},
-		0x36: {"ROL", "zpg,X", 2, 6, cpu.rol},
-		0x37: {"RLA", "zpg,X", 2, 6, cpu.rla},
-		0x38: {"SEC", "impl", 1, 2, cpu.sec},
-		0x39: {"AND", "abs,Y", 3, 4, cpu.and},
-		0x3A: {"NOP", "impl", 1, 2, cpu.nop},
-		0x3B: {"RLA", "abs,Y", 3, 7, cpu.rla},
-		0x3C: {"NOP", "abs,X", 3, 4, cpu.nop},
-		0x3D: {"AND", "abs,X", 3, 4, cpu.and},
-		0x3E: {"ROL", "abs,X", 3, 7, cpu.rol},
-		0x3F: {"RLA", "abs,X", 3, 7, cpu.rla},
+		0x30: {Name: "BMI", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bmi},
+		0x31: {Name: "AND", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.and},
+		0x32: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x33: {Name: "RLA", Mode: indirectY, Size: 2, Cycles: 8, Fn: cpu.rla}, // illegal
+		0x34: {Name: "NOP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x35: {Name: "AND", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.and},
+		0x36: {Name: "ROL", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.rol},
+		0x37: {Name: "RLA", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.rla}, // illegal
+		0x38: {Name: "SEC", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.sec},
+		0x39: {Name: "AND", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.and},
+		0x3A: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},  // illegal
+		0x3B: {Name: "RLA", Mode: absoluteY, Size: 3, Cycles: 7, Fn: cpu.rla}, // illegal
+		0x3C: {Name: "NOP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x3D: {Name: "AND", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.and},
+		0x3E: {Name: "ROL", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.rol},
+		0x3F: {Name: "RLA", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.rla}, // illegal
 
-		0x40: {"RTI", "impl", 1, 6, cpu.rti},
-		0x41: {"EOR", "X,ind", 2, 6, cpu.eor},
-		0x42: {"JAM", "impl", 1, 0, cpu.jam},
-		0x43: {"SRE", "X,ind", 2, 8, cpu.sre},
-		0x44: {"NOP", "zpg", 2, 3, cpu.nop},
-		0x45: {"EOR", "zpg", 2, 3, cpu.eor},
-		0x46: {"LSR", "zpg", 2, 5, cpu.lsr},
-		0x47: {"SRE", "zpg", 2, 5, cpu.sre},
-		0x48: {"PHA", "impl", 1, 3, cpu.pha},
-		0x49: {"EOR", "#", 2, 2, cpu.eor},
-		0x4A: {"LSR", "A", 1, 2, cpu.lsr},
-		0x4B: {"ALR", "#", 2, 2, cpu.alr},
-		0x4C: {"JMP", "abs", 3, 3, cpu.jmp},
-		0x4D: {"EOR", "abs", 3, 4, cpu.eor},
-		0x4E: {"LSR", "abs", 3, 6, cpu.lsr},
-		0x4F: {"SRE", "abs", 3, 6, cpu.sre},
+		0x40: {Name: "RTI", Mode: implicit, Size: 1, Cycles: 6, Fn: cpu.rti},
+		0x41: {Name: "EOR", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.eor},
+		0x42: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x43: {Name: "SRE", Mode: indirectX, Size: 2, Cycles: 8, Fn: cpu.sre}, // illegal
+		0x44: {Name: "NOP", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.nop},  // illegal
+		0x45: {Name: "EOR", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.eor},
+		0x46: {Name: "LSR", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.lsr},
+		0x47: {Name: "SRE", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.sre}, // illegal
+		0x48: {Name: "PHA", Mode: implicit, Size: 1, Cycles: 3, Fn: cpu.pha},
+		0x49: {Name: "EOR", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.eor},
+		0x4A: {Name: "LSR", Mode: accumulator, Size: 1, Cycles: 2, Fn: cpu.lsr},
+		0x4B: {Name: "ALR", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.alr}, // illegal
+		0x4C: {Name: "JMP", Mode: absolute, Size: 3, Cycles: 3, Fn: cpu.jmp},
+		0x4D: {Name: "EOR", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.eor},
+		0x4E: {Name: "LSR", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.lsr},
+		0x4F: {Name: "SRE", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.sre}, // illegal
 
-		0x50: {"BVC", "rel", 2, 2, cpu.bvc},
-		0x51: {"EOR", "ind,Y", 2, 5, cpu.eor},
-		0x52: {"JAM", "impl", 1, 0, cpu.jam},
-		0x53: {"SRE", "ind,Y", 2, 8, cpu.sre},
-		0x54: {"NOP", "zpg,X", 2, 4, cpu.nop},
-		0x55: {"EOR", "zpg,X", 2, 4, cpu.eor},
-		0x56: {"LSR", "zpg,X", 2, 6, cpu.lsr},
-		0x57: {"SRE", "zpg,X", 2, 6, cpu.sre},
-		0x58: {"CLI", "impl", 1, 2, cpu.cli},
-		0x59: {"EOR", "abs,Y", 3, 4, cpu.eor},
-		0x5A: {"NOP", "impl", 1, 2, cpu.nop},
-		0x5B: {"SRE", "abs,Y", 3, 7, cpu.sre},
-		0x5C: {"NOP", "abs,X", 3, 4, cpu.nop},
-		0x5D: {"EOR", "abs,X", 3, 4, cpu.eor},
-		0x5E: {"LSR", "abs,X", 3, 7, cpu.lsr},
-		0x5F: {"SRE", "abs,X", 3, 7, cpu.sre},
+		0x50: {Name: "BVC", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bvc},
+		0x51: {Name: "EOR", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.eor},
+		0x52: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x53: {Name: "SRE", Mode: indirectY, Size: 2, Cycles: 8, Fn: cpu.sre}, // illegal
+		0x54: {Name: "NOP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x55: {Name: "EOR", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.eor},
+		0x56: {Name: "LSR", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.lsr},
+		0x57: {Name: "SRE", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.sre}, // illegal
+		0x58: {Name: "CLI", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.cli},
+		0x59: {Name: "EOR", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.eor},
+		0x5A: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},  // illegal
+		0x5B: {Name: "SRE", Mode: absoluteY, Size: 3, Cycles: 7, Fn: cpu.sre}, // illegal
+		0x5C: {Name: "NOP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x5D: {Name: "EOR", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.eor},
+		0x5E: {Name: "LSR", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.lsr},
+		0x5F: {Name: "SRE", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.sre}, // illegal
 
-		0x60: {"RTS", "impl", 1, 6, cpu.rts},
-		0x61: {"ADC", "X,ind", 2, 6, cpu.adc},
-		0x62: {"JAM", "impl", 1, 0, cpu.jam},
-		0x63: {"RRA", "X,ind", 2, 8, cpu.rra},
-		0x64: {"NOP", "zpg", 2, 3, cpu.nop},
-		0x65: {"ADC", "zpg", 2, 3, cpu.adc},
-		0x66: {"ROR", "zpg", 2, 5, cpu.ror},
-		0x67: {"RRA", "zpg", 2, 5, cpu.rra},
-		0x68: {"PLA", "impl", 1, 4, cpu.pla},
-		0x69: {"ADC", "#", 2, 2, cpu.adc},
-		0x6A: {"ROR", "A", 1, 2, cpu.ror},
-		0x6B: {"ARR", "#", 2, 2, cpu.arr},
-		0x6C: {"JMP", "ind", 3, 5, cpu.jmp},
-		0x6D: {"ADC", "abs", 3, 4, cpu.adc},
-		0x6E: {"ROR", "abs", 3, 6, cpu.ror},
-		0x6F: {"RRA", "abs", 3, 6, cpu.rra},
+		0x60: {Name: "RTS", Mode: implicit, Size: 1, Cycles: 6, Fn: cpu.rts},
+		0x61: {Name: "ADC", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.adc},
+		0x62: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x63: {Name: "RRA", Mode: indirectX, Size: 2, Cycles: 8, Fn: cpu.rra}, // illegal
+		0x64: {Name: "NOP", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.nop},  // illegal
+		0x65: {Name: "ADC", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.adc},
+		0x66: {Name: "ROR", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.ror},
+		0x67: {Name: "RRA", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.rra}, // illegal
+		0x68: {Name: "PLA", Mode: implicit, Size: 1, Cycles: 4, Fn: cpu.pla},
+		0x69: {Name: "ADC", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.adc},
+		0x6A: {Name: "ROR", Mode: accumulator, Size: 1, Cycles: 2, Fn: cpu.ror},
+		0x6B: {Name: "ARR", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.arr}, // illegal
+		0x6C: {Name: "JMP", Mode: indirect, Size: 3, Cycles: 5, Fn: cpu.jmp},
+		0x6D: {Name: "ADC", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.adc},
+		0x6E: {Name: "ROR", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.ror},
+		0x6F: {Name: "RRA", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.rra}, // illegal
 
-		0x70: {"BVS", "rel", 2, 2, cpu.bvs},
-		0x71: {"ADC", "ind,Y", 2, 5, cpu.adc},
-		0x72: {"JAM", "impl", 1, 0, cpu.jam},
-		0x73: {"RRA", "ind,Y", 2, 8, cpu.rra},
-		0x74: {"NOP", "zpg,X", 2, 4, cpu.nop},
-		0x75: {"ADC", "zpg,X", 2, 4, cpu.adc},
-		0x76: {"ROR", "zpg,X", 2, 6, cpu.ror},
-		0x77: {"RRA", "zpg,X", 2, 6, cpu.rra},
-		0x78: {"SEI", "impl", 1, 2, cpu.sei},
-		0x79: {"ADC", "abs,Y", 3, 4, cpu.adc},
-		0x7A: {"NOP", "impl", 1, 2, cpu.nop},
-		0x7B: {"RRA", "abs,Y", 3, 7, cpu.rra},
-		0x7C: {"NOP", "abs,X", 3, 4, cpu.nop},
-		0x7D: {"ADC", "abs,X", 3, 4, cpu.adc},
-		0x7E: {"ROR", "abs,X", 3, 7, cpu.ror},
-		0x7F: {"RRA", "abs,X", 3, 7, cpu.rra},
+		0x70: {Name: "BVS", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bvs},
+		0x71: {Name: "ADC", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.adc},
+		0x72: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x73: {Name: "RRA", Mode: indirectY, Size: 2, Cycles: 8, Fn: cpu.rra}, // illegal
+		0x74: {Name: "NOP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x75: {Name: "ADC", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.adc},
+		0x76: {Name: "ROR", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.ror},
+		0x77: {Name: "RRA", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.rra}, // illegal
+		0x78: {Name: "SEI", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.sei},
+		0x79: {Name: "ADC", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.adc},
+		0x7A: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},  // illegal
+		0x7B: {Name: "RRA", Mode: absoluteY, Size: 3, Cycles: 7, Fn: cpu.rra}, // illegal
+		0x7C: {Name: "NOP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.nop}, // illegal
+		0x7D: {Name: "ADC", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.adc},
+		0x7E: {Name: "ROR", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.ror},
+		0x7F: {Name: "RRA", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.rra}, // illegal
 
-		0x80: {"NOP", "#", 2, 2, cpu.nop},
-		0x81: {"STA", "X,ind", 2, 6, cpu.sta},
-		0x82: {"NOP", "#", 2, 2, cpu.nop},
-		0x83: {"SAX", "X,ind", 2, 6, cpu.sax},
-		0x84: {"STY", "zpg", 2, 3, cpu.sty},
-		0x85: {"STA", "zpg", 2, 3, cpu.sta},
-		0x86: {"STX", "zpg", 2, 3, cpu.stx},
-		0x87: {"SAX", "zpg", 2, 3, cpu.sax},
-		0x88: {"DEY", "impl", 1, 2, cpu.dey},
-		0x89: {"NOP", "#", 2, 2, cpu.nop},
-		0x8A: {"TXA", "impl", 1, 2, cpu.txa},
-		0x8B: {"ANE", "#", 2, 2, cpu.ane},
-		0x8C: {"STY", "abs", 3, 4, cpu.sty},
-		0x8D: {"STA", "abs", 3, 4, cpu.sta},
-		0x8E: {"STX", "abs", 3, 4, cpu.stx},
-		0x8F: {"SAX", "abs", 3, 4, cpu.sax},
+		0x80: {Name: "NOP", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.nop}, // illegal
+		0x81: {Name: "STA", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.sta},
+		0x82: {Name: "NOP", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.nop}, // illegal
+		0x83: {Name: "SAX", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.sax}, // illegal
+		0x84: {Name: "STY", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.sty},
+		0x85: {Name: "STA", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.sta},
+		0x86: {Name: "STX", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.stx},
+		0x87: {Name: "SAX", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.sax}, // illegal
+		0x88: {Name: "DEY", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.dey},
+		0x89: {Name: "NOP", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.nop}, // illegal
+		0x8A: {Name: "TXA", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.txa},
+		0x8B: {Name: "ANE", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.ane}, // illegal
+		0x8C: {Name: "STY", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.sty},
+		0x8D: {Name: "STA", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.sta},
+		0x8E: {Name: "STX", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.stx},
+		0x8F: {Name: "SAX", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.sax}, // illegal
 
-		0x90: {"BCC", "rel", 2, 2, cpu.bcc},
-		0x91: {"STA", "ind,Y", 2, 6, cpu.sta},
-		0x92: {"JAM", "impl", 1, 0, cpu.jam},
-		0x93: {"SHA", "ind,Y", 2, 6, cpu.sha},
-		0x94: {"STY", "zpg,X", 2, 4, cpu.sty},
-		0x95: {"STA", "zpg,X", 2, 4, cpu.sta},
-		0x96: {"STX", "zpg,Y", 2, 4, cpu.stx},
-		0x97: {"SAX", "zpg,Y", 2, 4, cpu.sax},
-		0x98: {"TYA", "impl", 1, 2, cpu.tya},
-		0x99: {"STA", "abs,Y", 3, 5, cpu.sta},
-		0x9A: {"TXS", "impl", 1, 2, cpu.txs},
-		0x9B: {"TAS", "abs,Y", 3, 5, cpu.tas},
-		0x9C: {"SHY", "abs,X", 3, 5, cpu.shy},
-		0x9D: {"STA", "abs,X", 3, 5, cpu.sta},
-		0x9E: {"SHX", "abs,Y", 3, 5, cpu.shx},
-		0x9F: {"SHA", "abs,Y", 3, 5, cpu.sha},
+		0x90: {Name: "BCC", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bcc},
+		0x91: {Name: "STA", Mode: indirectY, Size: 2, Cycles: 6, Fn: cpu.sta},
+		0x92: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0x93: {Name: "SHA", Mode: indirectY, Size: 2, Cycles: 6, Fn: cpu.sha}, // illegal
+		0x94: {Name: "STY", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.sty},
+		0x95: {Name: "STA", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.sta},
+		0x96: {Name: "STX", Mode: zeroPageY, Size: 2, Cycles: 4, Fn: cpu.stx},
+		0x97: {Name: "SAX", Mode: zeroPageY, Size: 2, Cycles: 4, Fn: cpu.sax}, // illegal
+		0x98: {Name: "TYA", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.tya},
+		0x99: {Name: "STA", Mode: absoluteY, Size: 3, Cycles: 5, Fn: cpu.sta},
+		0x9A: {Name: "TXS", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.txs},
+		0x9B: {Name: "TAS", Mode: absoluteY, Size: 3, Cycles: 5, Fn: cpu.tas}, // illegal
+		0x9C: {Name: "SHY", Mode: absoluteX, Size: 3, Cycles: 5, Fn: cpu.shy}, // illegal
+		0x9D: {Name: "STA", Mode: absoluteX, Size: 3, Cycles: 5, Fn: cpu.sta},
+		0x9E: {Name: "SHX", Mode: absoluteY, Size: 3, Cycles: 5, Fn: cpu.shx},
+		0x9F: {Name: "SHA", Mode: absoluteY, Size: 3, Cycles: 5, Fn: cpu.sha}, // illegal
 
-		0xA0: {"LDY", "#", 2, 2, cpu.ldy},
-		0xA1: {"LDA", "X,ind", 2, 6, cpu.lda},
-		0xA2: {"LDX", "#", 2, 2, cpu.ldx},
-		0xA3: {"LAX", "X,ind", 2, 6, cpu.lax},
-		0xA4: {"LDY", "zpg", 2, 3, cpu.ldy},
-		0xA5: {"LDA", "zpg", 2, 3, cpu.lda},
-		0xA6: {"LDX", "zpg", 2, 3, cpu.ldx},
-		0xA7: {"LAX", "zpg", 2, 3, cpu.lax},
-		0xA8: {"TAY", "impl", 1, 2, cpu.tay},
-		0xA9: {"LDA", "#", 2, 2, cpu.lda},
-		0xAA: {"TAX", "impl", 1, 2, cpu.tax},
-		0xAB: {"LXA", "#", 2, 2, cpu.lxa},
-		0xAC: {"LDY", "abs", 3, 4, cpu.ldy},
-		0xAD: {"LDA", "abs", 3, 4, cpu.lda},
-		0xAE: {"LDX", "abs", 3, 4, cpu.ldx},
-		0xAF: {"LAX", "abs", 3, 4, cpu.lax},
+		0xA0: {Name: "LDY", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.ldy},
+		0xA1: {Name: "LDA", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.lda},
+		0xA2: {Name: "LDX", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.ldx},
+		0xA3: {Name: "LAX", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.lax}, // illegal
+		0xA4: {Name: "LDY", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.ldy},
+		0xA5: {Name: "LDA", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.lda},
+		0xA6: {Name: "LDX", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.ldx},
+		0xA7: {Name: "LAX", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.lax}, // illegal
+		0xA8: {Name: "TAY", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.tay},
+		0xA9: {Name: "LDA", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.lda},
+		0xAA: {Name: "TAX", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.tax},
+		0xAB: {Name: "LXA", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.lxa}, // illegal
+		0xAC: {Name: "LDY", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.ldy},
+		0xAD: {Name: "LDA", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.lda},
+		0xAE: {Name: "LDX", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.ldx},
+		0xAF: {Name: "LAX", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.lax}, // illegal
 
-		0xB0: {"BCS", "rel", 2, 2, cpu.bcs},
-		0xB1: {"LDA", "ind,Y", 2, 5, cpu.lda},
-		0xB2: {"JAM", "impl", 1, 0, cpu.jam},
-		0xB3: {"LAX", "ind,Y", 2, 5, cpu.lax},
-		0xB4: {"LDY", "zpg,X", 2, 4, cpu.ldy},
-		0xB5: {"LDA", "zpg,X", 2, 4, cpu.lda},
-		0xB6: {"LDX", "zpg,Y", 2, 4, cpu.ldx},
-		0xB7: {"LAX", "zpg,Y", 2, 4, cpu.lax},
-		0xB8: {"CLV", "impl", 1, 2, cpu.clv},
-		0xB9: {"LDA", "abs,Y", 3, 4, cpu.lda},
-		0xBA: {"TSX", "impl", 1, 2, cpu.tsx},
-		0xBB: {"LAS", "abs,Y", 3, 4, cpu.las},
-		0xBC: {"LDY", "abs,X", 3, 4, cpu.ldy},
-		0xBD: {"LDA", "abs,X", 3, 4, cpu.lda},
-		0xBE: {"LDX", "abs,Y", 3, 4, cpu.ldx},
-		0xBF: {"LAX", "abs,Y", 3, 4, cpu.lax},
+		0xB0: {Name: "BCS", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bcs},
+		0xB1: {Name: "LDA", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.lda},
+		0xB2: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0xB3: {Name: "LAX", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.lax}, // illegal
+		0xB4: {Name: "LDY", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.ldy},
+		0xB5: {Name: "LDA", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.lda},
+		0xB6: {Name: "LDX", Mode: zeroPageY, Size: 2, Cycles: 4, Fn: cpu.ldx},
+		0xB7: {Name: "LAX", Mode: zeroPageY, Size: 2, Cycles: 4, Fn: cpu.lax}, // illegal
+		0xB8: {Name: "CLV", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.clv},
+		0xB9: {Name: "LDA", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.lda},
+		0xBA: {Name: "TSX", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.tsx},
+		0xBB: {Name: "LAS", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.las}, // illegal
+		0xBC: {Name: "LDY", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.ldy},
+		0xBD: {Name: "LDA", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.lda},
+		0xBE: {Name: "LDX", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.ldx},
+		0xBF: {Name: "LAX", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.lax}, // illegal
 
-		0xC0: {"CPY", "#", 2, 2, cpu.cpy},
-		0xC1: {"CMP", "X,ind", 2, 6, cpu.cmp},
-		0xC2: {"NOP", "#", 2, 2, cpu.nop},
-		0xC3: {"DCP", "X,ind", 2, 8, cpu.dcp},
-		0xC4: {"CPY", "zpg", 2, 3, cpu.cpy},
-		0xC5: {"CMP", "zpg", 2, 3, cpu.cmp},
-		0xC6: {"DEC", "zpg", 2, 5, cpu.dec},
-		0xC7: {"DCP", "zpg", 2, 5, cpu.dcp},
-		0xC8: {"INY", "impl", 1, 2, cpu.iny},
-		0xC9: {"CMP", "#", 2, 2, cpu.cmp},
-		0xCA: {"DEX", "impl", 1, 2, cpu.dex},
-		0xCB: {"SBX", "#", 2, 2, cpu.sbx},
-		0xCC: {"CPY", "abs", 3, 4, cpu.cpy},
-		0xCD: {"CMP", "abs", 3, 4, cpu.cmp},
-		0xCE: {"DEC", "abs", 3, 6, cpu.dec},
-		0xCF: {"DCP", "abs", 3, 6, cpu.dcp},
+		0xC0: {Name: "CPY", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.cpy},
+		0xC1: {Name: "CMP", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.cmp},
+		0xC2: {Name: "NOP", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.nop}, // illegal
+		0xC3: {Name: "DCP", Mode: indirectX, Size: 2, Cycles: 8, Fn: cpu.dcp}, // illegal
+		0xC4: {Name: "CPY", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.cpy},
+		0xC5: {Name: "CMP", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.cmp},
+		0xC6: {Name: "DEC", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.dec},
+		0xC7: {Name: "DCP", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.dcp}, // illegal
+		0xC8: {Name: "INY", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.iny},
+		0xC9: {Name: "CMP", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.cmp},
+		0xCA: {Name: "DEX", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.dex},
+		0xCB: {Name: "SBX", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.sbx}, // illegal
+		0xCC: {Name: "CPY", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.cpy},
+		0xCD: {Name: "CMP", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.cmp},
+		0xCE: {Name: "DEC", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.dec},
+		0xCF: {Name: "DCP", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.dcp}, // illegal
 
-		0xD0: {"BNE", "rel", 2, 2, cpu.bne},
-		0xD1: {"CMP", "ind,Y", 2, 5, cpu.cmp},
-		0xD2: {"JAM", "impl", 1, 0, cpu.jam},
-		0xD3: {"DCP", "ind,Y", 2, 8, cpu.dcp},
-		0xD4: {"NOP", "zpg,X", 2, 4, cpu.nop},
-		0xD5: {"CMP", "zpg,X", 2, 4, cpu.cmp},
-		0xD6: {"DEC", "zpg,X", 2, 6, cpu.dec},
-		0xD7: {"DCP", "zpg,X", 2, 6, cpu.dcp},
-		0xD8: {"CLD", "impl", 1, 2, cpu.cld},
-		0xD9: {"CMP", "abs,Y", 3, 4, cpu.cmp},
-		0xDA: {"NOP", "impl", 1, 2, cpu.nop},
-		0xDB: {"DCP", "abs,Y", 3, 7, cpu.dcp},
-		0xDC: {"NOP", "abs,X", 3, 4, cpu.nop},
-		0xDD: {"CMP", "abs,X", 3, 4, cpu.cmp},
-		0xDE: {"DEC", "abs,X", 3, 7, cpu.dec},
-		0xDF: {"DCP", "abs,X", 3, 7, cpu.dcp},
+		0xD0: {Name: "BNE", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.bne},
+		0xD1: {Name: "CMP", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.cmp},
+		0xD2: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0xD3: {Name: "DCP", Mode: indirectY, Size: 2, Cycles: 8, Fn: cpu.dcp}, // illegal
+		0xD4: {Name: "NOP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.nop}, // illegal
+		0xD5: {Name: "CMP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.cmp},
+		0xD6: {Name: "DEC", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.dec},
+		0xD7: {Name: "DCP", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.dcp}, // illegal
+		0xD8: {Name: "CLD", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.cld},
+		0xD9: {Name: "CMP", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.cmp},
+		0xDA: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},  // illegal
+		0xDB: {Name: "DCP", Mode: absoluteY, Size: 3, Cycles: 7, Fn: cpu.dcp}, // illegal
+		0xDC: {Name: "NOP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.nop}, // illegal
+		0xDD: {Name: "CMP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.cmp},
+		0xDE: {Name: "DEC", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.dec},
+		0xDF: {Name: "DCP", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.dcp}, // illegal
 
-		0xE0: {"CPX", "#", 2, 2, cpu.cpx},
-		0xE1: {"SBC", "X,ind", 2, 6, cpu.sbc},
-		0xE2: {"NOP", "#", 2, 2, cpu.nop},
-		0xE3: {"ISC", "X,ind", 2, 8, cpu.isc},
-		0xE4: {"CPX", "zpg", 2, 3, cpu.cpx},
-		0xE5: {"SBC", "zpg", 2, 3, cpu.sbc},
-		0xE6: {"INC", "zpg", 2, 5, cpu.inc},
-		0xE7: {"ISC", "zpg", 2, 5, cpu.isc},
-		0xE8: {"INX", "impl", 1, 2, cpu.inx},
-		0xE9: {"SBC", "#", 2, 2, cpu.sbc},
-		0xEA: {"NOP", "impl", 1, 2, cpu.nop},
-		0xEB: {"USBC", "#", 2, 2, cpu.usbc},
-		0xEC: {"CPX", "abs", 3, 4, cpu.cpx},
-		0xED: {"SBC", "abs", 3, 4, cpu.sbc},
-		0xEE: {"INC", "abs", 3, 6, cpu.inc},
-		0xEF: {"ISC", "abs", 3, 6, cpu.isc},
+		0xE0: {Name: "CPX", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.cpx},
+		0xE1: {Name: "SBC", Mode: indirectX, Size: 2, Cycles: 6, Fn: cpu.sbc},
+		0xE2: {Name: "NOP", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.nop}, // illegal
+		0xE3: {Name: "ISC", Mode: indirectX, Size: 2, Cycles: 8, Fn: cpu.isc}, // illegal
+		0xE4: {Name: "CPX", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.cpx},
+		0xE5: {Name: "SBC", Mode: zeroPage, Size: 2, Cycles: 3, Fn: cpu.sbc},
+		0xE6: {Name: "INC", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.inc},
+		0xE7: {Name: "ISC", Mode: zeroPage, Size: 2, Cycles: 5, Fn: cpu.isc}, // illegal
+		0xE8: {Name: "INX", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.inx},
+		0xE9: {Name: "SBC", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.sbc}, // illegal
+		0xEA: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},
+		0xEB: {Name: "USBC", Mode: immediate, Size: 2, Cycles: 2, Fn: cpu.usbc}, // illegal
+		0xEC: {Name: "CPX", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.cpx},
+		0xED: {Name: "SBC", Mode: absolute, Size: 3, Cycles: 4, Fn: cpu.sbc},
+		0xEE: {Name: "INC", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.inc},
+		0xEF: {Name: "ISC", Mode: absolute, Size: 3, Cycles: 6, Fn: cpu.isc}, // illegal
 
-		0xF0: {"BEQ", "rel", 2, 2, cpu.beq},
-		0xF1: {"SBC", "ind,Y", 2, 5, cpu.sbc},
-		0xF2: {"JAM", "impl", 1, 0, cpu.jam},
-		0xF3: {"ISC", "ind,Y", 2, 8, cpu.isc},
-		0xF4: {"NOP", "zpg,X", 2, 4, cpu.nop},
-		0xF5: {"SBC", "zpg,X", 2, 4, cpu.sbc},
-		0xF6: {"INC", "zpg,X", 2, 6, cpu.inc},
-		0xF7: {"ISC", "zpg,X", 2, 6, cpu.isc},
-		0xF8: {"SED", "impl", 1, 2, cpu.sed},
-		0xF9: {"SBC", "abs,Y", 3, 4, cpu.sbc},
-		0xFA: {"NOP", "impl", 1, 2, cpu.nop},
-		0xFB: {"ISC", "abs,Y", 3, 7, cpu.isc},
-		0xFC: {"NOP", "abs,X", 3, 4, cpu.nop},
-		0xFD: {"SBC", "abs,X", 3, 4, cpu.sbc},
-		0xFE: {"INC", "abs,X", 3, 7, cpu.inc},
-		0xFF: {"ISC", "abs,X", 3, 7, cpu.isc},
+		0xF0: {Name: "BEQ", Mode: relative, Size: 2, Cycles: 2, Fn: cpu.beq},
+		0xF1: {Name: "SBC", Mode: indirectY, Size: 2, Cycles: 5, Fn: cpu.sbc},
+		0xF2: {Name: "JAM", Mode: implicit, Size: 1, Cycles: 0, Fn: cpu.jam},  // illegal
+		0xF3: {Name: "ISC", Mode: indirectY, Size: 2, Cycles: 8, Fn: cpu.isc}, // illegal
+		0xF4: {Name: "NOP", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.nop}, // illegal
+		0xF5: {Name: "SBC", Mode: zeroPageX, Size: 2, Cycles: 4, Fn: cpu.sbc},
+		0xF6: {Name: "INC", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.inc},
+		0xF7: {Name: "ISC", Mode: zeroPageX, Size: 2, Cycles: 6, Fn: cpu.isc}, // illegal
+		0xF8: {Name: "SED", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.sed},
+		0xF9: {Name: "SBC", Mode: absoluteY, Size: 3, Cycles: 4, Fn: cpu.sbc},
+		0xFA: {Name: "NOP", Mode: implicit, Size: 1, Cycles: 2, Fn: cpu.nop},  // illegal
+		0xFB: {Name: "ISC", Mode: absoluteY, Size: 3, Cycles: 7, Fn: cpu.isc}, // illegal
+		0xFC: {Name: "NOP", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.nop}, // illegal
+		0xFD: {Name: "SBC", Mode: absoluteX, Size: 3, Cycles: 4, Fn: cpu.sbc},
+		0xFE: {Name: "INC", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.inc},
+		0xFF: {Name: "ISC", Mode: absoluteX, Size: 3, Cycles: 7, Fn: cpu.isc}, // illegal
 	}
 }

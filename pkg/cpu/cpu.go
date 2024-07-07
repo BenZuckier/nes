@@ -99,24 +99,24 @@ const (
 	absoluteX
 	absoluteY
 	indirect
-	indexedIndirect
-	indirectIndexed
+	indirectX
+	indirectY
 )
 
 var modeNames = map[int]string{
-	implicit:        "implicit",
-	accumulator:     "accumulator",
-	immediate:       "immediate",
-	zeroPage:        "zeroPage",
-	zeroPageX:       "zeroPageX",
-	zeroPageY:       "zeroPageY",
-	relative:        "relative",
-	absolute:        "absolute",
-	absoluteX:       "absoluteX",
-	absoluteY:       "absoluteY",
-	indirect:        "indirect",
-	indexedIndirect: "indexedIndirect",
-	indirectIndexed: "indirectIndexed",
+	implicit:    "implicit",
+	accumulator: "accumulator",
+	immediate:   "immediate",
+	zeroPage:    "zeroPage",
+	zeroPageX:   "zeroPageX",
+	zeroPageY:   "zeroPageY",
+	relative:    "relative",
+	absolute:    "absolute",
+	absoluteX:   "absoluteX",
+	absoluteY:   "absoluteY",
+	indirect:    "indirect",
+	indirectX:   "indirectX", // indexedIndirect, (Indirect,X)
+	indirectY:   "indirectY", // indirectIndexed, (Indirect),Y
 }
 
 // implementing 6502 as described in https://wdc65xx.com/Programming-Manual/ eyes/lichty
@@ -150,9 +150,22 @@ func (cpu *CPU) push(dat byte) {
 	cpu.write(cpu.effStack(), dat)
 	cpu.s -= 1
 }
+
+// pop increments the stack pointer and gets the byte at the top of the stack.
 func (cpu *CPU) pop() byte {
 	cpu.s += 1
 	return cpu.read(cpu.effStack())
+}
+
+// push16 writes the uint16 dat to the position pointed to by [CPU.s] and grows the stack downwards twice.
+func (cpu *CPU) push16(dat uint16) {
+	cpu.push(byte(dat >> 8)) // hi
+	cpu.push(byte(dat))
+}
+
+// pop16 increments the stack pointer twice and gets the uint16 at the top of the stack.
+func (cpu *CPU) pop16() uint16 {
+	return uint16(cpu.pop()<<8) | uint16(cpu.pop()) // hi << 8
 }
 
 // effStack gets the effective stack pointer into memory by adding 0x0100 as the high byte to the supplied low byte stack pointer.
@@ -183,6 +196,12 @@ func (cpu *CPU) setN(result byte) {
 	cpu.status.N = result&0x80 != 0
 }
 
+// setZN sets the zero flag [CPU.setZ] if result was 0 and the negative flag [CPU.setN] if the result of the last operation had bit 7 set to a one.
+func (cpu *CPU) setZN(result byte) {
+	cpu.setZ(result)
+	cpu.setN(result)
+}
+
 func (cpu *CPU) setB() {
 	cpu.status.B = true
 }
@@ -192,7 +211,7 @@ func (cpu *CPU) setB() {
 // The brk instruction forces the generation of an interrupt request.
 // The program counter and processor status are pushed on the stack then the IRQ interrupt vector at 0xFFFE/F is loaded into the PC and the break flag in the status set to one.
 func (cpu *CPU) brk(opDat) {
-	// cpu.
+	cpu.push16(cpu.pc)
 	cpu.setB()
 
 	// TODO: push PC and status onto the stack
@@ -204,8 +223,7 @@ func (cpu *CPU) brk(opDat) {
 // load the value into register A and set Z and N flags if value is 0 or negative respectively.
 func (cpu *CPU) lda(dat opDat) {
 	cpu.a = cpu.read(dat.addr)
-	cpu.setZ(cpu.a)
-	cpu.setN(cpu.a)
+	cpu.setZN(cpu.a)
 }
 
 //	Transfer Accumulator to X
@@ -213,8 +231,7 @@ func (cpu *CPU) lda(dat opDat) {
 // Copies the current contents of the accumulator into the X register and sets the zero and negative flags as appropriate. (transfer a to x)
 func (cpu *CPU) tax(opDat) {
 	cpu.x = cpu.a
-	cpu.setZ(cpu.x)
-	cpu.setN(cpu.x)
+	cpu.setZN(cpu.x)
 }
 
 // Increment X Register
@@ -222,9 +239,87 @@ func (cpu *CPU) tax(opDat) {
 // Adds one to the X register setting the zero and negative flags as appropriate.
 func (cpu *CPU) inx(opDat) {
 	cpu.x += 1
-	cpu.setZ(cpu.x)
-	cpu.setN(cpu.x)
+	cpu.setZN(cpu.x)
 }
+
+func (cpu *CPU) ora(opDat) {}
+func (cpu *CPU) jam(opDat) {}
+func (cpu *CPU) slo(opDat) {}
+func (cpu *CPU) nop(opDat) {}
+func (cpu *CPU) asl(opDat) {}
+func (cpu *CPU) php(opDat) {
+
+}
+func (cpu *CPU) anc(opDat)  {}
+func (cpu *CPU) bpl(opDat)  {}
+func (cpu *CPU) clc(opDat)  {}
+func (cpu *CPU) jsr(opDat)  {}
+func (cpu *CPU) and(opDat)  {}
+func (cpu *CPU) rla(opDat)  {}
+func (cpu *CPU) bit(opDat)  {}
+func (cpu *CPU) rol(opDat)  {}
+func (cpu *CPU) plp(opDat)  {}
+func (cpu *CPU) bmi(opDat)  {}
+func (cpu *CPU) sec(opDat)  {}
+func (cpu *CPU) rti(opDat)  {}
+func (cpu *CPU) eor(opDat)  {}
+func (cpu *CPU) sre(opDat)  {}
+func (cpu *CPU) lsr(opDat)  {}
+func (cpu *CPU) pha(opDat)  {}
+func (cpu *CPU) alr(opDat)  {}
+func (cpu *CPU) jmp(opDat)  {}
+func (cpu *CPU) bvc(opDat)  {}
+func (cpu *CPU) cli(opDat)  {}
+func (cpu *CPU) rts(opDat)  {}
+func (cpu *CPU) adc(opDat)  {}
+func (cpu *CPU) rra(opDat)  {}
+func (cpu *CPU) ror(opDat)  {}
+func (cpu *CPU) pla(opDat)  {}
+func (cpu *CPU) arr(opDat)  {}
+func (cpu *CPU) bvs(opDat)  {}
+func (cpu *CPU) sei(opDat)  {}
+func (cpu *CPU) sta(opDat)  {}
+func (cpu *CPU) sax(opDat)  {}
+func (cpu *CPU) sty(opDat)  {}
+func (cpu *CPU) stx(opDat)  {}
+func (cpu *CPU) dey(opDat)  {}
+func (cpu *CPU) txa(opDat)  {}
+func (cpu *CPU) ane(opDat)  {}
+func (cpu *CPU) bcc(opDat)  {}
+func (cpu *CPU) sha(opDat)  {}
+func (cpu *CPU) tya(opDat)  {}
+func (cpu *CPU) txs(opDat)  {}
+func (cpu *CPU) tas(opDat)  {}
+func (cpu *CPU) shy(opDat)  {}
+func (cpu *CPU) shx(opDat)  {}
+func (cpu *CPU) ldy(opDat)  {}
+func (cpu *CPU) ldx(opDat)  {}
+func (cpu *CPU) lax(opDat)  {}
+func (cpu *CPU) tay(opDat)  {}
+func (cpu *CPU) lxa(opDat)  {}
+func (cpu *CPU) bcs(opDat)  {}
+func (cpu *CPU) clv(opDat)  {}
+func (cpu *CPU) tsx(opDat)  {}
+func (cpu *CPU) las(opDat)  {}
+func (cpu *CPU) cpy(opDat)  {}
+func (cpu *CPU) cmp(opDat)  {}
+func (cpu *CPU) dcp(opDat)  {}
+func (cpu *CPU) dec(opDat)  {}
+func (cpu *CPU) iny(opDat)  {}
+func (cpu *CPU) dex(opDat)  {}
+func (cpu *CPU) sbx(opDat)  {}
+func (cpu *CPU) bne(opDat)  {}
+func (cpu *CPU) cld(opDat)  {}
+func (cpu *CPU) cpx(opDat)  {}
+func (cpu *CPU) sbc(opDat)  {}
+func (cpu *CPU) isc(opDat)  {}
+func (cpu *CPU) inc(opDat)  {}
+func (cpu *CPU) usbc(opDat) {}
+func (cpu *CPU) beq(opDat)  {}
+func (cpu *CPU) sed(opDat)  {}
+
+// 4 + 72 = 76
+// 23 illegals
 
 func (cpu *CPU) Hotloop(program []byte) {
 	if len(program) > math.MaxUint16 {
