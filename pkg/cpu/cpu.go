@@ -1,10 +1,5 @@
 package cpu
 
-import (
-	"fmt"
-	"math"
-)
-
 type Status struct {
 	N, V, P_, B, D, I, Z, C bool
 }
@@ -79,13 +74,15 @@ type CPU struct {
 	// and the BRK/interrupt request handler (0xFFFE/F).
 	//
 	// https://www.nesdev.org/obelisk-6502-guide/architecture.html
-	memory  [0xFFFF]byte
+	memory  [0xFFFF + 1]byte
 	opcodes map[byte]opcode
 }
 
-// func newCPU() CPU {
-// 	return CPU{status: &Status{}}
-// }
+func newCPU() *CPU {
+	cpu := &CPU{}
+	cpu.initializeOpcodeTable()
+	return cpu
+}
 
 const (
 	implicit = iota // implied?
@@ -206,16 +203,16 @@ func (cpu *CPU) setB() {
 	cpu.status.B = true
 }
 
-// Force Interrupt
+// brk - Force Interrupt
 //
 // The brk instruction forces the generation of an interrupt request.
 // The program counter and processor status are pushed on the stack then the IRQ interrupt vector at 0xFFFE/F is loaded into the PC and the break flag in the status set to one.
-func (cpu *CPU) brk(opDat) {
+func (cpu *CPU) brk(dat opDat) {
 	cpu.push16(cpu.pc)
 	cpu.setB()
-
-	// TODO: push PC and status onto the stack
-	// TODO: load IRQ interrupt vector at 0xFFFE/F into the PC
+	cpu.php(dat)
+	// cpu.sei(dat) // TODO: ?
+	cpu.pc = cpu.read16(0xFFFE)
 }
 
 // Load Accumulator
@@ -247,37 +244,49 @@ func (cpu *CPU) jam(opDat) {}
 func (cpu *CPU) slo(opDat) {}
 func (cpu *CPU) nop(opDat) {}
 func (cpu *CPU) asl(opDat) {}
-func (cpu *CPU) php(opDat) {
 
+// php - Push Processor Status
+//
+// Pushes a copy of the status flags on to the stack.
+func (cpu *CPU) php(opDat) {
+	cpu.push(cpu.status.Get())
 }
-func (cpu *CPU) anc(opDat)  {}
-func (cpu *CPU) bpl(opDat)  {}
-func (cpu *CPU) clc(opDat)  {}
-func (cpu *CPU) jsr(opDat)  {}
-func (cpu *CPU) and(opDat)  {}
-func (cpu *CPU) rla(opDat)  {}
-func (cpu *CPU) bit(opDat)  {}
-func (cpu *CPU) rol(opDat)  {}
-func (cpu *CPU) plp(opDat)  {}
-func (cpu *CPU) bmi(opDat)  {}
-func (cpu *CPU) sec(opDat)  {}
-func (cpu *CPU) rti(opDat)  {}
-func (cpu *CPU) eor(opDat)  {}
-func (cpu *CPU) sre(opDat)  {}
-func (cpu *CPU) lsr(opDat)  {}
-func (cpu *CPU) pha(opDat)  {}
-func (cpu *CPU) alr(opDat)  {}
-func (cpu *CPU) jmp(opDat)  {}
-func (cpu *CPU) bvc(opDat)  {}
-func (cpu *CPU) cli(opDat)  {}
-func (cpu *CPU) rts(opDat)  {}
-func (cpu *CPU) adc(opDat)  {}
-func (cpu *CPU) rra(opDat)  {}
-func (cpu *CPU) ror(opDat)  {}
-func (cpu *CPU) pla(opDat)  {}
-func (cpu *CPU) arr(opDat)  {}
-func (cpu *CPU) bvs(opDat)  {}
-func (cpu *CPU) sei(opDat)  {}
+func (cpu *CPU) anc(opDat) {}
+func (cpu *CPU) bpl(opDat) {}
+func (cpu *CPU) clc(opDat) {}
+func (cpu *CPU) jsr(opDat) {}
+func (cpu *CPU) and(opDat) {}
+func (cpu *CPU) rla(opDat) {}
+func (cpu *CPU) bit(opDat) {}
+func (cpu *CPU) rol(opDat) {}
+func (cpu *CPU) plp(opDat) {}
+func (cpu *CPU) bmi(opDat) {}
+func (cpu *CPU) sec(opDat) {}
+func (cpu *CPU) rti(opDat) {}
+func (cpu *CPU) eor(opDat) {}
+func (cpu *CPU) sre(opDat) {}
+func (cpu *CPU) lsr(opDat) {}
+func (cpu *CPU) pha(opDat) {}
+func (cpu *CPU) alr(opDat) {}
+func (cpu *CPU) jmp(opDat) {}
+func (cpu *CPU) bvc(opDat) {}
+func (cpu *CPU) cli(opDat) {}
+func (cpu *CPU) rts(opDat) {}
+func (cpu *CPU) adc(opDat) {}
+func (cpu *CPU) rra(opDat) {}
+func (cpu *CPU) ror(opDat) {}
+func (cpu *CPU) pla(opDat) {}
+func (cpu *CPU) arr(opDat) {}
+func (cpu *CPU) bvs(opDat) {}
+
+// SEI - Set Interrupt Disable
+//
+// I = 1
+//
+// Set the interrupt disable flag to one.
+func (cpu *CPU) sei(opDat) {
+	cpu.status.I = true
+}
 func (cpu *CPU) sta(opDat)  {}
 func (cpu *CPU) sax(opDat)  {}
 func (cpu *CPU) sty(opDat)  {}
@@ -322,11 +331,38 @@ func (cpu *CPU) sed(opDat)  {}
 // 23 illegals
 
 func (cpu *CPU) Hotloop(program []byte) {
-	if len(program) > math.MaxUint16 {
-		panic(fmt.Errorf("len of program %v greater than max %v", len(program), math.MaxUint16))
-	}
-
+	// if len(program) > math.MaxUint16 {
+	// 	panic(fmt.Errorf("len of program %v greater than max %v", len(program), math.MaxUint16))
+	// }
+	copy(cpu.memory[:], program)
 	cpu.pc = 0
+	for !cpu.status.B {
+		op := cpu.opcodes[cpu.read(cpu.pc)]
+		dat := opDat{mode: op.Mode}
+		switch op.Mode {
+		case implicit:
+		case accumulator:
+		case immediate:
+			dat.addr = cpu.pc + 1
+		case zeroPage:
+		case zeroPageX:
+		case zeroPageY:
+		case relative:
+		case absolute:
+		case absoluteX:
+		case absoluteY:
+		case indirect:
+		case indirectX:
+		case indirectY:
+		default:
+		}
+		cpu.pc += op.Size
+		// TODO: count cycles and page crossings
+		dat.pc = cpu.pc
+
+		op.Do(dat)
+
+	}
 	// for !cpu.status.B {
 	// 	op := program[cpu.pc]
 	// 	cpu.pc += 1
