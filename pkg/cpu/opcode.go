@@ -1,5 +1,7 @@
 package cpu
 
+import "fmt"
+
 // generated with ChatGPT and https://www.masswerk.at/6502/6502_instruction_set.html
 
 type opDat struct {
@@ -15,6 +17,12 @@ type opcode struct {
 	Size   uint16
 	Cycles int
 	Do     func(opDat) // FbyF is 256 total codes, with 105 illegal opcodes, giving 151 legal codes.
+}
+
+// String is the stringer value to use with format %v. Gives human readable string of the opcode
+func (op *opcode) String() string {
+	return fmt.Sprintf("Name: %v, Mode: %v, Size: %vB, Cycles: %v",
+		op.Name, modes[op.Mode], op.Size, op.Cycles)
 }
 
 // InitializeOpcodeTable initializes the CPU's opcode table.
