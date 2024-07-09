@@ -19,7 +19,7 @@ func TestBitBang(t *testing.T) {
 			// set to 11..11
 			c.status.Set(0xff)
 
-			fmt.Printf("status %v", c.status)
+			_, _ = fmt.Printf("status %v", c.status)
 
 			c.setZ(0) // set the zero flag
 			So(c.status.Get(), ShouldEqual, 0xff)
@@ -50,10 +50,10 @@ func TestBitBang(t *testing.T) {
 			c.status.Set(initialStatus)
 
 			c.setZ(1) // unset zero flag
-			fmt.Printf("%b\n", c.status.Get())
+			_, _ = fmt.Printf("%b\n", c.status.Get())
 			So(c.status.Get()&^posZ, ShouldEqual, initialStatus)
 			c.setZ(0) // set zero flag
-			fmt.Printf("%b\n", c.status.Get())
+			_, _ = fmt.Printf("%b\n", c.status.Get())
 			So(c.status.Get()&^posZ, ShouldEqual, initialStatus)
 		})
 
@@ -79,7 +79,7 @@ func TestBitBang(t *testing.T) {
 			x := int8(neg1)
 			ux := uint16(x)
 
-			Printf("\nneg1: %0x, x: %0x, ux: %0x\n", neg1, x, ux)
+			_, _ = Printf("\nneg1: %0x, x: %0x, ux: %0x\n", neg1, x, ux)
 
 			So(int(x), ShouldEqual, -1)
 			So(ux, ShouldEqual, 0xffff)
@@ -149,6 +149,15 @@ func TestOpcodes(t *testing.T) {
 
 		})
 
+		Convey("reset", func() {
+
+			Convey("test reset and print cpu state", func() {
+				cpu.reset()
+				_, _ = fmt.Printf("\ncpu: %v\n", cpu)
+			})
+
+		})
+
 		Convey("simple programs", func() {
 
 			Convey("p1", func() {
@@ -184,7 +193,7 @@ func TestMemory(t *testing.T) {
 			cpu.memory[pos+1] = 0x80
 
 			dat := cpu.read16(pos)
-			fmt.Printf("dat is %04x", dat)
+			_, _ = fmt.Printf("dat is %04x", dat)
 			So(dat, ShouldEqual, expected)
 
 			// test writing back zero then 0x8000 again

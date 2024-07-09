@@ -89,6 +89,13 @@ func newCPU() *CPU {
 	return cpu
 }
 
+// String is the stringer value to use with format %v. Gives the working state of the processor.
+func (cpu *CPU) String() string {
+	return fmt.Sprintf("stack: 0x%0x=%v, pc: 0x%0x=%v, accumulator: 0x%0x=%v, x: 0x%0x=%v, y: 0x%0x=%v, status: 0x%0x=%+v",
+		cpu.s, cpu.s, cpu.pc, cpu.pc, cpu.a, cpu.a, cpu.x, cpu.x, cpu.y, cpu.y, cpu.status.Get(), cpu.status,
+	)
+}
+
 const (
 	implicit = iota // implied?
 	accumulator
@@ -105,7 +112,7 @@ const (
 	indirectY
 )
 
-var modeNames = map[int]string{
+var modes = map[int]string{
 	implicit:    "implicit",
 	accumulator: "accumulator",
 	immediate:   "immediate",
